@@ -64,13 +64,12 @@ import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
 public class WarmUpController implements TrafficShapingController {
 
     protected double count;
-    private int coldFactor;
     protected int warningToken = 0;
-    private int maxToken;
     protected double slope;
-
     protected AtomicLong storedTokens = new AtomicLong(0);
     protected AtomicLong lastFilledTime = new AtomicLong(0);
+    private int coldFactor;
+    private int maxToken;
 
     public WarmUpController(double count, int warmUpPeriodInSec, int coldFactor) {
         construct(count, warmUpPeriodInSec, coldFactor);
@@ -92,11 +91,11 @@ public class WarmUpController implements TrafficShapingController {
 
         // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
         // warningToken = 100;
-        warningToken = (int)(warmUpPeriodInSec * count) / (coldFactor - 1);
+        warningToken = (int) (warmUpPeriodInSec * count) / (coldFactor - 1);
         // / maxPermits = thresholdPermits + 2 * warmupPeriod /
         // (stableInterval + coldInterval)
         // maxToken = 200
-        maxToken = warningToken + (int)(2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
+        maxToken = warningToken + (int) (2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
 
         // slope
         // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits
@@ -165,10 +164,10 @@ public class WarmUpController implements TrafficShapingController {
         // 添加令牌的判断前提条件:
         // 当令牌的消耗程度远远低于警戒线的时候
         if (oldValue < warningToken) {
-            newValue = (long)(oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
+            newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
         } else if (oldValue > warningToken) {
-            if (passQps < (int)count / coldFactor) {
-                newValue = (long)(oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
+            if (passQps < (int) count / coldFactor) {
+                newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
             }
         }
         return Math.min(newValue, maxToken);
