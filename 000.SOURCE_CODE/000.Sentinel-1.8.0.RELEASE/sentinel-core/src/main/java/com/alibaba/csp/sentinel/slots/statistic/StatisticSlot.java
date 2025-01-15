@@ -36,12 +36,12 @@ import com.alibaba.csp.sentinel.slots.block.BlockException;
  * <p>
  * A processor slot that dedicates to real time statistics.
  * When entering this slot, we need to separately count the following
- * information:
+ * information:(一个用于实时统计的处理器槽位，进入此槽位时，我们需要分别统计以下信息：)
  * <ul>
- * <li>{@link ClusterNode}: total statistics of a cluster node of the resource ID.</li>
- * <li>Origin node: statistics of a cluster node from different callers/origins.</li>
- * <li>{@link DefaultNode}: statistics for specific resource name in the specific context.</li>
- * <li>Finally, the sum statistics of all entrances.</li>
+ * <li>{@link ClusterNode}: total statistics of a cluster node of the resource ID.(资源 ID 的集群节点总统计信息。)</li>
+ * <li>Origin node: statistics of a cluster node from different callers/origins.(源节点：来自不同调用者/源的集群节点统计信息。)</li>
+ * <li>{@link DefaultNode}: statistics for specific resource name in the specific context.(特定上下文中特定资源名称的统计信息。)</li>
+ * <li>Finally, the sum statistics of all entrances.(最后对所有入口进行总和统计。)</li>
  * </ul>
  * </p>
  *

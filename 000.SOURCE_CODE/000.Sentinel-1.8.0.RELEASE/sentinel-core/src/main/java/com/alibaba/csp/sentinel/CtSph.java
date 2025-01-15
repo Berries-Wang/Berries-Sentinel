@@ -203,8 +203,7 @@ public class CtSph implements Sph {
                     }
 
                     chain = SlotChainProvider.newSlotChain();
-                    Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(
-                        chainMap.size() + 1);
+                    Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(chainMap.size() + 1);
                     newMap.putAll(chainMap);
                     newMap.put(resourceWrapper, chain);
                     chainMap = newMap;

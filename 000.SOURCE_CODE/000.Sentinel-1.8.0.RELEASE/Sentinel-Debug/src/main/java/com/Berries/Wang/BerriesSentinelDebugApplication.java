@@ -23,8 +23,8 @@ public class BerriesSentinelDebugApplication {
         rule.setResource("com.Berries.Wang.controller.DebugFlowCodeFactorController#/sentinel/flow/codeFactor");
         rule.setGrade(RuleConstant.FLOW_GRADE_QPS);
         // Set limit QPS to 20.
-        rule.setCount(2);
-        rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_WARM_UP);
+        rule.setCount(1);
+        rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_DEFAULT);
         rule.setWarmUpPeriodSec(60);
         rules.add(rule);
         FlowRuleManager.loadRules(rules);

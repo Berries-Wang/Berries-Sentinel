@@ -32,9 +32,9 @@ public class SampleCountProperty {
      * <p>
      * Statistic buckets count per second. This variable determines sensitivity of the QPS calculation.
      * DO NOT MODIFY this value directly, use {@link #updateSampleCount(int)}, otherwise the modification will not
-     * take effect.
+     * take effect.(每秒统计的窗口桶数量。此变量决定了 QPS 计算的敏感度。请勿直接修改此值，应使用 updateSampleCount(int) 方法，否则修改将不会生效)
      * </p>
-     * Node that this value must be divisor of 1000.
+     * Node that this value must be divisor(除数) of 1000.
      */
     public static volatile int SAMPLE_COUNT = 2;
 

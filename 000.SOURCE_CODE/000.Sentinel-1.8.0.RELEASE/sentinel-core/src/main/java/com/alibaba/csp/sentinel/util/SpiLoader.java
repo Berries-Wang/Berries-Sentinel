@@ -214,9 +214,9 @@ public final class SpiLoader {
     }
 
     /**
-     * Load the sorted and prototype SPI instance list for provided SPI interface.
+     * Load the sorted and prototype SPI instance list for provided SPI interface.(为提供的 SPI 接口加载已排序的原型 SPI 实例列表。)
      *
-     * Note: each call return different instances, i.e. prototype instance, not singleton instance.
+     * Note: each call return different instances, i.e. prototype instance, not singleton instance.(每次调用都返回不同的实例，即原型实例，而不是单例实例。)
      *
      * @param clazz class of the SPI
      * @param <T>   SPI type
@@ -229,12 +229,12 @@ public final class SpiLoader {
             ServiceLoader<T> serviceLoader = ServiceLoaderUtil.getServiceLoader(clazz);
 
             List<SpiOrderWrapper<T>> orderWrappers = new ArrayList<>();
+            // 在 ‘java.util.ServiceLoader.LazyIterator.nextService’ 中会对Class实例化一个对象
             for (T spi : serviceLoader) {
                 int order = SpiOrderResolver.resolveOrder(spi);
-                // Since SPI is lazy initialized in ServiceLoader, we use online sort algorithm here.
+                // Since SPI is lazy initialized in ServiceLoader, we use online sort algorithm here.(由于SPI在ServiceLoader中是延迟初始化的，因此我们在这里使用在线排序算法。)
                 SpiOrderResolver.insertSorted(orderWrappers, spi, order);
-                RecordLog.debug("[SpiLoader] Found {} SPI: {} with order {}", clazz.getSimpleName(),
-                        spi.getClass().getCanonicalName(), order);
+                RecordLog.debug("[SpiLoader] Found {} SPI: {} with order {}", clazz.getSimpleName(), spi.getClass().getCanonicalName(), order);
             }
             List<T> list = new ArrayList<>(orderWrappers.size());
             for (int i = 0; i < orderWrappers.size(); i++) {

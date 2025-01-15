@@ -30,7 +30,7 @@ import com.alibaba.csp.sentinel.util.TimeUtil;
  * <p>
  * Leap array use sliding window algorithm to count data. Each bucket cover {@code windowLengthInMs} time span,
  * and the total time span is {@link #intervalInMs}, so the total bucket amount is:
- * {@code sampleCount = intervalInMs / windowLengthInMs}.
+ * {@code sampleCount = intervalInMs / windowLengthInMs}.（Leap array 使用滑动窗口算法来统计数据。每个窗口桶覆盖 windowLengthInMs 的时间跨度，而总时间跨度为 intervalInMs，因此窗口桶的总数量为：sampleCount = intervalInMs / windowLengthInMs。）
  * </p>
  *
  * @param <T> type of statistic data
@@ -40,8 +40,13 @@ import com.alibaba.csp.sentinel.util.TimeUtil;
  */
 public abstract class LeapArray<T> {
 
+    // 单个桶的时间跨度
     protected int windowLengthInMs;
+
+    // 桶的数量
     protected int sampleCount;
+
+    // 总的时间跨度
     protected int intervalInMs;
 
     protected final AtomicReferenceArray<WindowWrap<T>> array;
