@@ -31,7 +31,7 @@ public class DebugFlowCodeFactorController {
 
         HashMap<String, Object> rsp = new HashMap<>();
         rsp.put("status", 200);
-        rsp.put("api", "com.Berries.Wang.controller.DebugFlowCodeFactorController.codeFactor");
+        rsp.put("api", "限流: com.Berries.Wang.controller.DebugFlowCodeFactorController.codeFactor");
         return rsp;
     }
 }

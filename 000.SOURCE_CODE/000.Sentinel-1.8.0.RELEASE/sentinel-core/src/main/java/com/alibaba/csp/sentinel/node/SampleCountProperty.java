@@ -51,7 +51,7 @@ public class SampleCountProperty {
 
     /**
      * Update the {@link #SAMPLE_COUNT}. All {@link ClusterNode}s will be reset if newSampleCount
-     * is different from {@link #SAMPLE_COUNT}.
+     * is different from {@link #SAMPLE_COUNT}.(更新 SAMPLE_COUNT。如果 newSampleCount 与 SAMPLE_COUNT 不同，所有 ClusterNodes 将被重置。)
      *
      * @param newSampleCount New sample count to set. This value must be divisor of 1000.
      */
