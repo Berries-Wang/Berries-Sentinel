@@ -23,6 +23,22 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>
+ *     实现是在 Guava 的算法的基础上实现的。然而，和 Guava 的场景不同，Guava 的场景主要用于调节请求的间隔，
+ *     而 Sentinel 则主要用于控制每秒的 QPS，即我们满足每秒通过的 QPS 即可，我们不需要关注每个请求的间隔。
+ *</p>
+ *
+ * <P>
+ *     用桶里剩余的令牌来量化系统的使用率。假设系统每秒的处理能力为 b,系统每处理一个请求，就从桶中取走一个令牌；
+ *     每秒这个令牌桶会自动掉落b个令牌。令牌桶越满，则说明系统的利用率越低；当令牌桶里的令牌高于某个阈值之后，我们称之为令牌桶"饱和"。
+ * </p>
+ * <pre>
+ *     当令牌桶饱和的时候，`基于 Guava 的计算上`，我们可以推出下面两个公式:
+ *       rate(c)=m*c+ coldrate
+ *     其中，rate 为当前请求和上一个请求的间隔时间，而 rate 是和令牌桶中的高于阈值的令牌数量成线形关系的。
+ *     cold rate 则为当桶满的时候，请求和请求的最大间隔。通常是 coldFactor * rate(stable)
+ *
+ * </pre>
+ * <p>
  * The principle idea comes from Guava. However, the calculation of Guava is rate-based, which means that we need to
  * translate rate to QPS.(核心思想来自 Guava。然而，Guava 的计算是基于速率的，这意味着我们需要将速率转换为 QPS)
  * <pre>
@@ -92,12 +108,14 @@ public class WarmUpController implements TrafficShapingController {
      * calling thread wait for that time.(RateLimiter 的主要特性是它的 '稳定速率'，即在正常情况下允许的最大速率。
      * 这是通过根据需要 '限流' 传入的请求来实现的。例如，我们可以计算传入请求的适当限流时间，并让调用线程等待该时间。)</p>
      *
+     *
      * <p>The simplest way to maintain a rate of QPS is to keep the timestamp of the last granted
      * request, and ensure that (1/QPS) seconds have elapsed since then. For example, for a rate of
      * QPS=5 (5 tokens per second), if we ensure that a request isn't granted earlier than 200ms after
      * the last one, then we achieve the intended rate. If a request comes and the last request was
      * granted only 100ms ago, then we wait for another 100ms. At this rate, serving 15 fresh permits
-     * (i.e. for an acquire(15) request) naturally takes 3 seconds.(维持 QPS 速率的最简单方法是记录最后一个被允许请求的时间戳，
+     * (i.e. for an acquire(15) request) naturally takes 3 seconds.(
+     * # 维持QPS速率的方法: 维持 QPS 速率的最简单方法是 *记录最后一个被允许请求的时间戳* ，
      * 并确保自那时起已经过了 (1/QPS) 秒。例如，对于 QPS=5 的速率（每秒 5 个令牌），
      * 如果我们确保一个请求不会在上一个请求之后 200 毫秒内被允许，那么我们就达到了预期的速率。
      * 如果一个请求到达时，上一个请求仅在 100 毫秒前被允许，那么我们会再等待 100 毫秒。按照这个速率，
@@ -107,15 +125,18 @@ public class WarmUpController implements TrafficShapingController {
      * it only remembers the last request. What if the RateLimiter was unused for a long period of
      * time, then a request arrived and was immediately granted? This RateLimiter would immediately
      * forget about that past underutilization. This may result in either underutilization or
-     * overflow, depending on the real world consequences of not using the expected rate.(重要的是要认识到，这样的 RateLimiter 对过去的记忆非常浅：
+     * overflow, depending on the real world consequences of not using the expected rate.(
+     * # 仅记录最后一次请求时间的弊端:
+     * 重要的是要认识到，这样的 RateLimiter 对过去的记忆非常浅：
      * 它只记得最后一个请求。如果 RateLimiter 长时间未被使用，然后一个请求到达并立即被允许，会发生什么？
      * 这个 RateLimiter 会立即忘记过去的未充分利用。这可能导致未充分利用或溢出，具体取决于未使用预期速率的实际后果。)</p>
      *
      * <p>Past underutilization could mean that excess resources are available. Then, the RateLimiter
      * should speed up for a while, to take advantage of these resources. This is important when the
      * rate is applied to networking (limiting bandwidth), where past underutilization typically
-     * translates to "almost empty buffers", which can be filled immediately.(过去的未充分利用可能意味着有额外的资源可用。
-     * 因此，RateLimiter 应该暂时加速，以利用这些资源。
+     * translates to "almost empty buffers", which can be filled immediately.(
+     *  # 利用历史资源:
+     * 过去的未充分利用可能意味着有额外的资源可用。因此，RateLimiter 应该暂时加速，以利用这些资源。
      * 这在速率应用于网络（限制带宽）时尤为重要，因为过去的未充分利用通常意味着 '几乎空的缓冲区'，这些缓冲区可以立即被填满。)</p>
      *
      * <p>On the other hand, past underutilization could mean that "the server responsible for handling
@@ -128,7 +149,7 @@ public class WarmUpController implements TrafficShapingController {
      * <p>To deal with such scenarios, we add an extra dimension, that of "past underutilization",
      * modeled by "storedPermits" variable. This variable is zero when there is no underutilization,
      * and it can grow up to maxStoredPermits, for sufficiently large underutilization. So, the
-     * requested permits, by an invocation acquire(permits), are served from:(为了处理这种情况，
+     * requested permits, by an invocation acquire(permits), are served from:(为了处理这种情况（#历史资源利用方案），
      * 我们增加了一个额外的维度，即 '过去的未充分利用'，通过 'storedPermits' 变量来建模。当没有未充分利用时，该变量为零；
      * 在未充分利用足够大时，它可以增长到 maxStoredPermits。因此，通过调用 acquire(permits) 请求的许可将从以下来源提供：)</p>
      *
