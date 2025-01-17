@@ -25,9 +25,21 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>
  * The principle idea comes from Guava. However, the calculation of Guava is rate-based, which means that we need to
  * translate rate to QPS.(核心思想来自 Guava。然而，Guava 的计算是基于速率的，这意味着我们需要将速率转换为 QPS)
- * <blockquote>
+ * <pre>
  *     怎么转换的呢?
- * </blockquote>
+ *  通过源代码发现，速率 和 QPS互成倒数关系
+ * #1. thresholdPermits = 0.5 * warmupPeriod / stableInterval # 来源于下面的文档
+ *     # 转换一下: 0.5 = 1/2 = 1 / (coldFactor - 1) // 因为，codeFactor被硬编码为3(从文档可以得出)
+ *     #=> // thresholdPermits = warmupPeriod / stableInterval / (coldFactor - 1)
+ *
+ * #2. 来源于源代码和注释
+ *     // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
+ *     warningToken = (int)(warmUpPeriodInSec * count) / (coldFactor - 1);
+ *
+ * #3. 所以, count (通过代码发现，count为QPS) =( 1/stableInterval)
+ *     #> 所以，速率 和 QPS互成倒数关系
+ * </pre>
+ *
  * </p>
  *
  * <p>
@@ -36,9 +48,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * connection, connects to a remote service, and so on. That’s why we need “warm up”.
  * (在脉冲时刻到达的请求可能会拖垮长时间闲置的系统，尽管它在稳定期具有更大的处理能力。
  * 这种情况通常发生在需要额外时间进行初始化的场景中，例如数据库建立连接、连接到远程服务等。这就是为什么我们需要 '预热'。)
- * <blockquote>
+ * <pre>
  *     类似于抽奖场景
- * </blockquote>
+ * </pre>
  * </p>
  *
  * <p>
@@ -61,7 +73,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>
  * Base on Guava’s theory, there is a linear equation we can write this in the form y = m * x + b where y (a.k.a y(x)),
  * or qps(q)), is our expected QPS given a saturated period (e.g. 3 minutes in), m is the rate of change from our cold
- * (minimum) rate to our stable (maximum) rate, x (or q) is the occupied token.(基于 Guava 的理论，
+ * (minimum)
+ * rate to our stable (maximum) rate, x (or q) is the occupied token.(基于 Guava 的理论，
  * 我们可以将其写成一个线性方程 y = m * x + b，
  * 其中 y（也称为 y(x) 或 qps(q)）是在饱和期（例如 3 分钟后）我们预期的 QPS，m 是从冷启动（最小）速率到稳定（最大）速率的变化率，x（或 q）是占用的令牌数。)
  * </p>
@@ -162,11 +175,12 @@ public class WarmUpController implements TrafficShapingController {
      * "permits / time", thus "1 / rate = time / permits". Thus, "1/rate" (time / permits) times
      * "permits" gives time, i.e., integrals on this function (which is what storedPermitsToWaitTime()
      * computes) correspond to minimum intervals between subsequent requests, for the specified number
-     * of requested permits.(这个角色由 storedPermitsToWaitTime(double storedPermits, double permitsToTake) 扮演。
-     * 底层模型是一个连续函数，将 storedPermits（从 0.0 到 maxStoredPermits）映射到在给定 storedPermits 下有效的 1/rate（即间隔）。
-     * 'storedPermits' 本质上是衡量未使用的时间；我们通过未使用的时间来购买/存储许可。
-     * 速率是 'permits / time'，因此 "1 / rate = time / permits"。因此， "1/rate" (time / permits）乘以 'permits' 得到时间，
-     * 即该函数的积分（即 storedPermitsToWaitTime() 计算的内容）对应于指定数量的请求许可之间的最小间隔。)</p>
+     * of requested permits.(这个角色由storedPermitsToWaitTime(double restoredPermits, double permitsToTake)扮演。
+     * 底层模型是一个连续函数，将storedPermits（从0.0到maxStoredPermits）映射到给定storedPermits时有效的1/速率（即间隔）。
+     * “storedPermits”本质上衡量未使用的时间；我们花费未使用的时间购买/存储许可证。
+     * 速率是'permits / time'，因此 "1 / rate = time / permits"。因此， "1/rate" (time / permits）乘以 'permits' 得到时间，
+     * 即此函数的积分（这是storedPermitsToWaitTime()计算的结果）对应于指定数量的请求许可证的后续请求之间的最小间隔。
+     * （这个角色由storedPermitsToWaitTime(double restoredPermits, double permitsToTake)扮演）)</p>
      *
      * <p>Here is an example of storedPermitsToWaitTime: If storedPermits == 10.0, and we want 3 permits,
      * we take them from storedPermits, reducing them to 7.0, and compute the throttling for these as
@@ -238,7 +252,7 @@ public class WarmUpController implements TrafficShapingController {
      * <p> This implements the following function where coldInterval = coldFactor * stableInterval.</p>
      *
      * <pre>
-     *          ^ throttling(限流)
+     *          ^ throttling(限流速率,单位:一个令牌生成速率)
      *          |
      *    cold  +                  /
      * interval |                 /.
@@ -254,6 +268,15 @@ public class WarmUpController implements TrafficShapingController {
      *          |          .       .
      *        0 +----------+-------+--------------→ storedPermits(累积的令牌)
      *          0 thresholdPermits maxPermits
+     *
+     *          # 所以: x * y = throttling * storedPermits = 生成${storedPermits}个permits所需要的时间 = 矩阵的面积
+     * </pre>
+     *
+     * <pre>
+     *    背景: 这里2.0代表QPS，4000代表warmup为4秒，3.0代表coldFactor即冷却因子，则:
+     *    stable interval: 1/2 = 500ms ,
+     *    则 code interval = coldFactor * stable interval = 1500ms
+     *
      * </pre>
      *<ol>
      *     <li>thresholdPermits: </li>
@@ -282,6 +305,14 @@ public class WarmUpController implements TrafficShapingController {
      * where coldFactor was hard coded as 3.)(假设我们有饱和需求，从 maxPermits 到 thresholdPermits 的时间等于 warmupPeriod。
      * 而从 thresholdPermits 到 0 的时间是 warmupPeriod/2。
      * （之所以是 warmupPeriod/2，是为了保持原始实现的行为，其中 coldFactor 被硬编码为 3。）)</p>
+     * <pre>
+     *               为什么 从 thresholdPermits 到 0 等于  warmupPeriod/2 ? 如何理解?
+     *   因为 coldFactor 被硬编码为3, 说明 当storedPermits 为 maxPermits 时(cold interval)，
+     *   生成一个permit的时间是平常(饱和)(stable interval)时期的3倍, 即 ${storedPermits 从 maxPermits 到 0 所需时间}
+     *   是 ${storedPermits 从 thresholdPermits 到 0 所需时间}的三倍,
+     *   =>那么，可以换算得到: ${storedPermits 从 thresholdPermits 到 0 所需时间}
+     *   是 ${storedPermits 从 maxPermits 到 thresholdPermits 所需时间} 的1/2 ((1/3) / (2/3) = (1/2))
+     * </pre>
      *
      * <p>It remains to calculate thresholdsPermits and maxPermits.(接下来需要计算 thresholdPermits 和 maxPermits)</p>
      *
@@ -305,6 +336,7 @@ public class WarmUpController implements TrafficShapingController {
      *       </blockquote>
      * </ul>
      */
+    // 限流规则配置的QPS
     protected double count;
     protected int warningToken = 0;
     // The slope(斜率) of the line from the stable interval (when permits == 0), to the cold interval (when permits == maxPermits)
@@ -342,7 +374,6 @@ public class WarmUpController implements TrafficShapingController {
 
         // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits - thresholdPermits);
         slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
-
     }
 
     @Override
