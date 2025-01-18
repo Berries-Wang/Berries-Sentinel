@@ -310,12 +310,12 @@ public class WarmUpController implements TrafficShapingController {
      *          ^ throttling(限流速率,单位:一个令牌生成速率)
      *          |                        /
      *          |                       /
-     * cold     +                      /
+     * cold     +                      /.
      * interval |                     / .
      *          |                    /  .
      *          |                   /   .
-     *    req   +                  /    .
-     *          |                 /.    .
+     *    req   |                  /    .
+     *          +                 /.    .
      *          |                / .    .
      *          |               /  .    .   ← "warmup period" is the area of the trapezoid
      *          |              /   .    .     between thresholdPermits and maxPermits
