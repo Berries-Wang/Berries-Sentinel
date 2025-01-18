@@ -33,7 +33,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * </p>
  * <pre>
  *     当令牌桶饱和的时候，`基于 Guava 的计算上`，我们可以推出下面两个公式:
- *       rate(c)=m*c+ coldrate
+ *       rate(c)= m*c+ coldrate
+ *       #> 通过源代码中的 warningQps 的计算，就知道这个公式是什么意思了
+ *         #> double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
+ *
  *     其中，rate 为当前请求和上一个请求的间隔时间，而 rate 是和令牌桶中的高于阈值的令牌数量成线形关系的。
  *     cold rate 则为当桶满的时候，请求和请求的最大间隔。通常是 coldFactor * rate(stable)
  *
@@ -46,7 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *  通过源代码发现，速率 和 QPS互成倒数关系
  * #1. thresholdPermits = 0.5 * warmupPeriod / stableInterval # 来源于下面的文档
  *     # 转换一下: 0.5 = 1/2 = 1 / (coldFactor - 1) // 因为，codeFactor被硬编码为3(从文档可以得出)
- *     #=> // thresholdPermits = warmupPeriod / stableInterval / (coldFactor - 1)
+ *     # => // thresholdPermits = warmupPeriod / stableInterval / (coldFactor - 1)
  *
  * #2. 来源于源代码和注释
  *     // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
@@ -65,7 +68,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * (在脉冲时刻到达的请求可能会拖垮长时间闲置的系统，尽管它在稳定期具有更大的处理能力。
  * 这种情况通常发生在需要额外时间进行初始化的场景中，例如数据库建立连接、连接到远程服务等。这就是为什么我们需要 '预热'。)
  * <pre>
- *     类似于抽奖场景
+ *     陡增流量场景: 抽奖场景 、直播间下单(3,2,1上链接)、...
  * </pre>
  * </p>
  *
@@ -291,6 +294,7 @@ public class WarmUpController implements TrafficShapingController {
      *          0 thresholdPermits maxPermits
      *
      *          # 所以: x * y = throttling * storedPermits = 生成${storedPermits}个permits所需要的时间 = 矩阵的面积
+     *          # cold interval = coldFactor * stable interval
      * </pre>
      *
      * <pre>
@@ -298,6 +302,36 @@ public class WarmUpController implements TrafficShapingController {
      *    stable interval: 1/2 = 500ms ,
      *    则 code interval = coldFactor * stable interval = 1500ms
      *
+     * </pre>
+     *
+     * <pre>
+     *
+     *     # 理解源码： double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count)); ， 这个公式是什么意思
+     *          ^ throttling(限流速率,单位:一个令牌生成速率)
+     *          |                        /
+     *          |                       /
+     * cold     +                      /
+     * interval |                     / .
+     *          |                    /  .
+     *          |                   /   .
+     *    req   +                  /    .
+     *          |                 /.    .
+     *          |                / .    .
+     *          |               /  .    .   ← "warmup period" is the area of the trapezoid
+     *          |              /   .    .     between thresholdPermits and maxPermits
+     *          |             /    .    .      (预热期是 thresholdPermits 和 maxPermits
+     *          |            /     .    .        之间梯形的面积。)
+     *          |           /      .    .
+     *   stable +----------/  WARM .    .
+     * interval |          .      UP    .
+     *          |          .      PERIOD.
+     *          |          .       .    .
+     *        0 +----------+-------+----+--------------→ storedPermits(累积的令牌)
+     *          0 thresholdPermits (req) maxPermits
+     *                               |
+     *                               +-> reqPermits
+     *          # req =((reqPermits) - thresholdPermits) * slop (斜率) + stableInterval
+     *          # 换算为QPS: 1/req
      * </pre>
      *<ol>
      *     <li>thresholdPermits: </li>
@@ -363,7 +397,10 @@ public class WarmUpController implements TrafficShapingController {
     // The slope(斜率) of the line from the stable interval (when permits == 0), to the cold interval (when permits == maxPermits)
     protected double slope;
     protected AtomicLong storedTokens = new AtomicLong(0);
+
+    // 上次请求时间(上次计算storedTokens的时间)
     protected AtomicLong lastFilledTime = new AtomicLong(0);
+
     private int coldFactor;
     private int maxToken;
 
@@ -411,14 +448,18 @@ public class WarmUpController implements TrafficShapingController {
 
         // 开始计算它的斜率: 如果进入了警戒线，开始调整他的qps
         long restToken = storedTokens.get();
-        if (restToken >= warningToken) {
+        if (restToken >= warningToken) { // 说明是在预热中
             long aboveToken = restToken - warningToken;
-            // 消耗的速度要比warning快，但是要比慢:  current interval = restToken*slope+1/count
+            /*
+             * 消耗的速度要比warning快，但是要比慢:  current interval = restToken*slope+1/count
+             *
+             * 通过上面的图，就知道这个公式是什么意思了
+             */
             double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
             if (passQps + acquireCount <= warningQps) {
                 return true;
             }
-        } else {
+        } else { // 预热结束，正常请求中
             if (passQps + acquireCount <= count) {
                 return true;
             }
