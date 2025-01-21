@@ -52,6 +52,7 @@ import java.util.concurrent.TimeUnit;
  *        return jlong(time.tv_sec) * 1000  +  jlong(time.tv_usec / 1000);
  *      }
  *   </pre>
+ *   [Berries-Kernel(代码仓库)]/001.UNIX-DOCS/000.gettimeofday.md 发现，System.currentTimeMillis() 会发起系统调用，并会涉及用户态&内核态之间的转换
  * </code>
  *
  * @author qinan.qn
