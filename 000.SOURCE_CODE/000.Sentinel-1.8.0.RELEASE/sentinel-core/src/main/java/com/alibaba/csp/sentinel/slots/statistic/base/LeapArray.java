@@ -15,22 +15,23 @@
  */
 package com.alibaba.csp.sentinel.slots.statistic.base;
 
+import com.alibaba.csp.sentinel.util.AssertUtil;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
-
-import com.alibaba.csp.sentinel.util.AssertUtil;
-import com.alibaba.csp.sentinel.util.TimeUtil;
 
 /**
  * <p>
  * Basic data structure for statistic metrics in Sentinel.
  * </p>
  * <p>
- * Leap array use sliding window algorithm to count data. Each bucket cover {@code windowLengthInMs} time span,
- * and the total time span is {@link #intervalInMs}, so the total bucket amount is:
- * {@code sampleCount = intervalInMs / windowLengthInMs}.（Leap array 使用滑动窗口算法来统计数据。每个窗口桶覆盖 windowLengthInMs 的时间跨度，而总时间跨度为 intervalInMs，因此窗口桶的总数量为：sampleCount = intervalInMs / windowLengthInMs。）
+ * Leap array use sliding window algorithm to count data. Each bucket cover {@code windowLengthInMs} time span, and the
+ * total time span is {@link #intervalInMs}, so the total bucket amount is:
+ * {@code sampleCount = intervalInMs / windowLengthInMs}.（Leap array 使用滑动窗口算法来统计数据。每个窗口桶覆盖 windowLengthInMs
+ * 的时间跨度，而总时间跨度为 intervalInMs，因此窗口桶的总数量为：sampleCount = intervalInMs / windowLengthInMs。）
  * </p>
  *
  * @param <T> type of statistic data
@@ -111,7 +112,7 @@ public abstract class LeapArray<T> {
     }
 
     /**
-     * Get bucket item at provided timestamp.
+     * Get bucket item at provided timestamp. (计算当前时间戳对应的桶: 即对应的时间窗格)
      *
      * @param timeMillis a valid timestamp in milliseconds
      * @return current bucket item at provided timestamp if the time is valid; null if time is invalid
@@ -260,8 +261,8 @@ public abstract class LeapArray<T> {
     }
 
     /**
-     * Check if a bucket is deprecated, which means that the bucket
-     * has been behind for at least an entire window time span.
+     * Check if a bucket is deprecated, which means that the bucket has been behind for at least an entire window time
+     * span.
      *
      * @param windowWrap a non-null bucket
      * @return true if the bucket is deprecated; otherwise false
@@ -275,8 +276,7 @@ public abstract class LeapArray<T> {
     }
 
     /**
-     * Get valid bucket list for entire sliding window.
-     * The list will only contain "valid" buckets.
+     * Get valid bucket list for entire sliding window. The list will only contain "valid" buckets.
      *
      * @return valid bucket list for entire sliding window.
      */
@@ -320,8 +320,7 @@ public abstract class LeapArray<T> {
     }
 
     /**
-     * Get aggregated value list for entire sliding window.
-     * The list will only contain value from "valid" buckets.
+     * Get aggregated value list for entire sliding window. The list will only contain value from "valid" buckets.
      *
      * @return aggregated value list for entire sliding window
      */
@@ -347,8 +346,7 @@ public abstract class LeapArray<T> {
     }
 
     /**
-     * Get the valid "head" bucket of the sliding window for provided timestamp.
-     * Package-private for test.
+     * Get the valid "head" bucket of the sliding window for provided timestamp. Package-private for test.
      *
      * @param timeMillis a valid timestamp in milliseconds
      * @return the "head" bucket if it exists and is valid; otherwise null
