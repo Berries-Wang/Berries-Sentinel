@@ -13,7 +13,24 @@
 ![Sentinel实现](./002.IMGS/sentinel-slot-chain-architecture.png)
 
 Sentinel 将 ProcessorSlot 作为 SPI 接口进行扩展（1.7.2 版本以前 SlotChainBuilder 作为 SPI），使得 Slot Chain 具备了扩展的能力。您可以自行加入自定义的 slot 并编排 slot 间的顺序，从而可以给 Sentinel 添加自定义的功能。
+
 ![Slots拓展](./002.IMGS/46783631-93324d00-cd5d-11e8-8ad1-a802bcc8f9c9.png)
+
+
+## 日志查阅
+```log
+    # 日志 ~/logs/csp/${appName}-metrics.log.xxx
+    
+    |--timestamp-|------date time----|--resource-|p |block|s |e|rt
+    1529998904000|2018-06-26 15:41:44|hello world|20|0    |20|0|0
+    1529998905000|2018-06-26 15:41:45|hello world|20|5579 |20|0|728
+    1529998906000|2018-06-26 15:41:46|hello world|20|15698|20|0|0
+    1529998907000|2018-06-26 15:41:47|hello world|20|19262|20|0|0
+    1529998908000|2018-06-26 15:41:48|hello world|20|19502|20|0|0
+    1529998909000|2018-06-26 15:41:49|hello world|20|18386|20|0|0
+
+    # p 代表通过的请求, block 代表被阻止的请求, s 代表成功执行完成的请求个数, e 代表用户自定义的异常, rt 代表平均响应时长。
+```
 
 
 ## 参考

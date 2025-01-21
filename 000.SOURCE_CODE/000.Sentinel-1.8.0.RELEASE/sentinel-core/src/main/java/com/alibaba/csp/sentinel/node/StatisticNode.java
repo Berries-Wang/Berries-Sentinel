@@ -82,7 +82,24 @@ import java.util.concurrent.ConcurrentHashMap;
  *                                                      ^
  *                                                      |
  *                                                    request
+ *
+ *
+ *
  * </pre>
+ *
+ * <pre>
+ * | 特性            | rollingCounterInSecond         | rollingCounterInMinute |
+ * |----------------|--------------------------------|------------------------|
+ * | **时间粒度**    | 秒级（1 秒）                     | 分钟级（1 分钟）          |
+ * | **滑动窗口划分** | 通常划分为 10 个 100ms 的窗口     | 通常划分为 60 个 1s 的窗口 |
+ * | **实时性**      | 高                              | 较低                    |
+ * | **适用场景**    | 实时流量控制、秒级熔断             | 长期流量趋势分析、分钟级熔断 |
+ *
+ * - **rollingCounterInSecond** 用于快速响应突发流量或异常情况，适合实时性要求高的场景。
+ * - **rollingCounterInMinute** 用于分析流量的长期趋势，适合对稳定性要求高的场景。
+ * 两者结合可以同时满足实时性和稳定性的需求，为 Sentinel 的流量控制和熔断降级提供全面的数据支持。
+ * </pre>
+ *
  *
  * @author qinan.qn
  * @author jialiang.linjl
@@ -97,7 +114,8 @@ public class StatisticNode implements Node {
 
     /**
      * Holds statistics of the recent 60 seconds. The windowLengthInMs is deliberately(有意的) set to 1000 milliseconds,
-     * meaning each bucket per second, in this way we can get accurate statistics of each second.(保存最近60秒的统计数据。windowLengthInMs 被特意设置为1000毫秒，即每秒一个窗口桶，通过这种方式我们可以获得每秒的精确统计数据。)
+     * meaning each bucket per second, in this way we can get accurate statistics of each second.(保存最近60秒的统计数据。
+     * windowLengthInMs 被特意设置为1000毫秒，即每秒一个窗口桶，通过这种方式我们可以获得每秒的精确统计数据。)
      */
     private transient Metric rollingCounterInMinute = new ArrayMetric(60/*桶数量*/, 60 * 1000/*总时间跨度*/, false);
 
