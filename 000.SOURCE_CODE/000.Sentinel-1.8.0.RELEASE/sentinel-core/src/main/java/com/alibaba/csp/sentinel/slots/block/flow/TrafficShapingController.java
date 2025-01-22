@@ -29,7 +29,7 @@ public interface TrafficShapingController {
      *
      * @param node resource node
      * @param acquireCount count to acquire
-     * @param prioritized whether the request is prioritized
+     * @param prioritized whether the request is prioritized(该请求是否优先)
      * @return true if the resource entry can pass; false if it should be blocked
      */
     boolean canPass(Node node, int acquireCount, boolean prioritized);

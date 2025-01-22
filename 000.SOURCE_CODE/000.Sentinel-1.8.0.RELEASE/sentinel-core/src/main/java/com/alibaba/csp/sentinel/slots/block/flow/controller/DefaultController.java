@@ -47,12 +47,16 @@ public class DefaultController implements TrafficShapingController {
 
     @Override
     public boolean canPass(Node node, int acquireCount, boolean prioritized) {
+        // 统计当前时间窗格截止目前通过的请求数量
         int curCount = avgUsedTokens(node);
+        // 超过了预期的QPS
         if (curCount + acquireCount > count) {
+            // 当该请求优先 且 根据QPS限流
             if (prioritized && grade == RuleConstant.FLOW_GRADE_QPS) {
                 long currentTime;
                 long waitInMs;
                 currentTime = TimeUtil.currentTimeMillis();
+                // 尝试占用未来时间窗格的QPS
                 waitInMs = node.tryOccupyNext(currentTime, acquireCount, count);
                 if (waitInMs < OccupyTimeoutProperty.getOccupyTimeout()) {
                     node.addWaitingRequest(currentTime + waitInMs, acquireCount);

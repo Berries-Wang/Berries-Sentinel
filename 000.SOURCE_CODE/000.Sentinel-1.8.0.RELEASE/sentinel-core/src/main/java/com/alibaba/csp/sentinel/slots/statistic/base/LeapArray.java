@@ -320,9 +320,13 @@ public abstract class LeapArray<T> {
     }
 
     /**
-     * Get aggregated value list for entire sliding window. The list will only contain value from "valid" buckets.
+     * Get aggregated value list for entire sliding window. The list will only contain value from "valid"
+     * buckets.(获取整个滑动窗口的聚合值列表。该列表将仅包含“有效”存储桶中的值。)
+     * <pre>
+     *     返回所有的滑动窗口中的请求数(失效的桶不记录)
+     * </pre>
      *
-     * @return aggregated value list for entire sliding window
+     * @return aggregated value list for entire sliding window(整个滑动窗口的聚合值列表)
      */
     public List<T> values() {
         return values(TimeUtil.currentTimeMillis());

@@ -104,13 +104,18 @@ public class ArrayMetric implements Metric {
         return block;
     }
 
+    /**
+     * 通过的请求数量
+     */
     @Override
     public long pass() {
         data.currentWindow();
         long pass = 0;
+        // 获取有效的桶(有效的时间窗格)
         List<MetricBucket> list = data.values();
 
         for (MetricBucket window : list) {
+            // 统计通过的请求
             pass += window.pass();
         }
         return pass;
