@@ -28,14 +28,15 @@ import java.util.concurrent.atomic.AtomicLong;
  *</p>
  *
  * <P>
- *     用桶里剩余的令牌来量化系统的使用率。假设系统每秒的处理能力为 b,系统每处理一个请求，就从桶中取走一个令牌；
+ *     `用桶里剩余的令牌来量化系统的使用率`。假设系统每秒的处理能力为 b,系统每处理一个请求，就从桶中取走一个令牌；
  *     每秒这个令牌桶会自动掉落b个令牌。令牌桶越满，则说明系统的利用率越低；当令牌桶里的令牌高于某个阈值之后，我们称之为令牌桶"饱和"。
  * </p>
  * <pre>
  *     当令牌桶饱和的时候，`基于 Guava 的计算上`，我们可以推出下面两个公式:
- *       rate(c)= m*c+ coldrate
+ *       rate(c)= m*c+ coldrate  # 为什么+coldrate,通过下面的图来理解  这是rate，不是interval
  *       #> 通过源代码中的 warningQps 的计算，就知道这个公式是什么意思了
  *         #> double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
+ *         ##> 通过这个公式，结合下面的源代码，其实，并没有算梯形的面积，而是直接通过这个公式来进行换算的
  *
  *     其中，rate 为当前请求和上一个请求的间隔时间，而 rate 是和令牌桶中的高于阈值的令牌数量成线形关系的。
  *     cold rate 则为当桶满的时候，请求和请求的最大间隔。通常是 coldFactor * rate(stable)
@@ -285,7 +286,7 @@ public class WarmUpController implements TrafficShapingController {
      *          |              /   .     between thresholdPermits and maxPermits
      *          |             /    .      (预热期是 thresholdPermits 和 maxPermits
      *          |            /     .        之间梯形的面积。)
-     *          |           /      .
+     *          |           /      .       # 直接通过 rate(c)= m*c+ coldrate 进行换算的,读源码
      *   stable +----------/  WARM .
      * interval |          .   UP  .
      *          |          . PERIOD.
