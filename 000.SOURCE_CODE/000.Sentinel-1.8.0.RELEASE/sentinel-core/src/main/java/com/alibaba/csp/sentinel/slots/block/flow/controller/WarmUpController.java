@@ -423,7 +423,7 @@ public class WarmUpController implements TrafficShapingController {
      * 初始化冷启动校验器
      *
      * @param count             允许通过的QPS
-     * @param warmUpPeriodInSec 预热时间
+     * @param warmUpPeriodInSec 预热时间,单位:秒
      * @param coldFactor        冷却因子
      */
     private void construct(double count, int warmUpPeriodInSec, int coldFactor) {
