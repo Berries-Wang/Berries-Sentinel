@@ -66,7 +66,7 @@ public class FlowRule extends AbstractRule {
     private int strategy = RuleConstant.STRATEGY_DIRECT;
 
     /**
-     * Reference resource in flow control with relevant resource or context.
+     * Reference resource in flow control with relevant(有关的) resource or context.
      */
     private String refResource;
 

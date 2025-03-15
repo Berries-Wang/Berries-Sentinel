@@ -82,9 +82,10 @@ public class ContextUtil {
 
     /**
      * <p>
-     * Enter the invocation context, which marks as the entrance of an invocation chain.
+     * Enter the invocation context, which marks as the entrance(入口) of an invocation chain.
      * The context is wrapped with {@code ThreadLocal}, meaning that each thread has it's own {@link Context}.
      * New context will be created if current thread doesn't have one.
+     * 》标记一个调用链的入口
      * </p>
      * <p>
      * A context will be bound with an {@link EntranceNode}, which represents the entrance statistic node
@@ -97,13 +98,14 @@ public class ContextUtil {
      * Note that each distinct {@code origin} of different resources will lead to creating different new
      * {@link Node}, meaning that total amount of created origin statistic nodes will be:<br/>
      * {@code distinct resource name amount * distinct origin count}.<br/>
-     * So when there are too many origins, memory footprint should be carefully considered.
+     * So when there are too many origins, memory footprint(占用空间) should be carefully considered.
+     * > 小心内存大量被占用
      * </p>
      * <p>
-     * Same resource in different context will count separately, see {@link NodeSelectorSlot}.
+     * Same resource in different context will count separately(单独地), see {@link NodeSelectorSlot}.
      * </p>
      *
-     * @param name   the context name
+     * @param name   the context name   context(上下文)的名字
      * @param origin the origin of this invocation, usually the origin could be the Service
      *               Consumer's app name. The origin is useful when we want to control different
      *               invoker/consumer separately.
