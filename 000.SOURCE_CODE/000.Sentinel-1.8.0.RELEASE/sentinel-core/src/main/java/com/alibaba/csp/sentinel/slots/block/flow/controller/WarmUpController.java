@@ -315,8 +315,8 @@ public class WarmUpController implements TrafficShapingController {
      * interval |                     / .
      *          |                    /  .
      *          |                   /   .
-     *    req   |                  /    .
-     *          +                 /.    .
+     *          |                  /    .
+     *    req   +                 /.    .
      *          |                / .    .
      *          |               /  .    .   ← "warmup period" is the area of the trapezoid
      *          |              /   .    .     between thresholdPermits and maxPermits
@@ -340,14 +340,18 @@ public class WarmUpController implements TrafficShapingController {
      * <p>Before going into the details of this particular function, let's keep in mind the basics:(在深入探讨这个特定函数的细节之前，让我们先记住一些基础知识：)</p>
      *
      * <ol>
-     *   <li>The state of the RateLimiter (storedPermits) is a vertical line in this figure.(RateLimiter（storedPermits）的状态在这个图中是一条垂直线。)
-     *   <li>When the RateLimiter is not used, this goes right (up to maxPermits)(当不使用 RateLimiter 时，它会向右移动（直到 maxPermits）)
-     *   <li>When the RateLimiter is used, this goes left (down to zero), since if we have
+     *   <li>1. The state of the RateLimiter (storedPermits) is a vertical line in this figure.(RateLimiter（storedPermits）的状态在这个图中是一条垂直线。)
+     *
+     *   <li>2. When the RateLimiter is not used, this goes right (up to maxPermits)(当不使用 RateLimiter 时，它会向右移动（直到 maxPermits）)
+     *
+     *   <li>3. When the RateLimiter is used, this goes left (down to zero), since if we have
      *       storedPermits, we serve from those first (当使用速率限制器时，它会向左移动（降至零），因为如果我们存储了许可证，我们会从最先存储的许可证开始提供服务)
-     *   <li>When _unused_, we go right at a constant rate! The rate at which we move to the right is
+     *
+     *   <li>4. When _unused_, we go right at a constant rate! The rate at which we move to the right is
      *       chosen as maxPermits / warmupPeriod. This ensures that the time it takes to go from 0 to
      *       maxPermits is equal to warmupPeriod.(当 未使用 时，我们以恒定速率向右移动！向右移动的速率选择为 maxPermits / warmupPeriod。这确保了从 0 到 maxPermits 所需的时间等于 warmupPeriod。)
-     *   <li> When _used_, the time it takes, as explained in the introductory class note, is equal to
+     *
+     *   <li>5. When _used_, the time it takes, as explained in the introductory class note, is equal to
      *       the integral of our function, between X permits and X-K permits, assuming we want to
      *       spend K saved permits.（当 使用 时，所需的时间(预热时间???)（如入门课程笔记中所述）等于我们函数在 X 许可和 X-K 许可之间的积分，假设我们要消耗 K 个已存储的许可。）
      * </ol>
@@ -361,7 +365,7 @@ public class WarmUpController implements TrafficShapingController {
      * where coldFactor was hard coded as 3.)(假设我们有饱和需求，从 maxPermits 到 thresholdPermits 的时间等于 warmupPeriod。
      * 而从 thresholdPermits 到 0 的时间是 warmupPeriod/2。
      * （之所以是 warmupPeriod/2，是为了保持原始实现的行为，其中 coldFactor 被硬编码为 3。）)</p>
-     * <pre>
+     * <pre>         #warningToken计算
      *               为什么 从 thresholdPermits 到 0 等于  warmupPeriod/2 ? 如何理解?
      *   因为 coldFactor 被硬编码为3, 说明 当storedPermits 为 maxPermits 时(cold interval)，
      *   生成一个permit的时间是平常(饱和)(stable interval)时期的3倍, 即 ${storedPermits 从 maxPermits 到 0 所需时间}
@@ -377,19 +381,21 @@ public class WarmUpController implements TrafficShapingController {
      *       between 0 and thresholdPermits. This is thresholdPermits * stableIntervals. By (5) it is
      *       also equal to warmupPeriod/2. Therefore (从 thresholdPermits 到 0 的时间等于函数在 0 到 thresholdPermits 之间的积分。
      *       这是 thresholdPermits * stableIntervals。根据 (5)，它也等于 warmupPeriod/2。因此)
-     *       <blockquote>
-     *       thresholdPermits = 0.5 * warmupPeriod / stableInterval
-     *       </blockquote>
+     *       <pre>
+     *           #warningToken计算
+     *              thresholdPermits = 0.5 * warmupPeriod / stableInterval
+     *       </pre>
      *   <li>The time to go from maxPermits to thresholdPermits is equal to the integral of the
      *       function between thresholdPermits and maxPermits. This is the area of the pictured
      *       trapezoid, and it is equal to 0.5 * (stableInterval + coldInterval) * (maxPermits -
      *       thresholdPermits). It is also equal to warmupPeriod, so
      *       (从 maxPermits 到 thresholdPermits 的时间等于函数在 thresholdPermits 到 maxPermits 之间的积分。
      *       这是图中梯形的面积，等于 0.5 * (stableInterval + coldInterval) * (maxPermits - thresholdPermits)
-     *       。它也等于 warmupPeriod，因此)
-     *       <blockquote>
-     *       maxPermits = thresholdPermits + 2 * warmupPeriod / (stableInterval + coldInterval)
-     *       </blockquote>
+     *       。它也等于 warmupPeriod（预热期），因此)
+     *       <pre>
+     *          #maxPermits计算
+     *             maxPermits = thresholdPermits + 2 * warmupPeriod / (stableInterval + coldInterval)
+     *       </pre>
      * </ul>
      */
     // 限流规则配置的QPS
@@ -413,6 +419,13 @@ public class WarmUpController implements TrafficShapingController {
         construct(count, warmUpPeriodInSec, 3);
     }
 
+    /**
+     * 初始化冷启动校验器
+     *
+     * @param count             允许通过的QPS
+     * @param warmUpPeriodInSec 预热时间
+     * @param coldFactor        冷却因子
+     */
     private void construct(double count, int warmUpPeriodInSec, int coldFactor) {
 
         if (coldFactor <= 1) {
@@ -423,12 +436,16 @@ public class WarmUpController implements TrafficShapingController {
 
         this.coldFactor = coldFactor;
 
-        // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
-        // warningToken = 100;
+        /**
+         * thresholdPermits = 0.5 * warmupPeriod / stableInterval。  // 0.5 = 1/(coldFactor-1)
+         * <pre>
+         *     这个公式怎么理解?
+         *      参考: '#warningToken计算'
+         *</pre>
+         */
         warningToken = (int)(warmUpPeriodInSec * count) / (coldFactor - 1);
-        // / maxPermits = thresholdPermits + 2 * warmupPeriod /
-        // (stableInterval + coldInterval)
-        // maxToken = 200
+
+        // maxPermits = thresholdPermits + 2 * warmupPeriod / (stableInterval + coldInterval)  # 为什么这样算?看上面的注释'#maxPermits计算'
         maxToken = warningToken + (int)(2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
 
         // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits - thresholdPermits);
