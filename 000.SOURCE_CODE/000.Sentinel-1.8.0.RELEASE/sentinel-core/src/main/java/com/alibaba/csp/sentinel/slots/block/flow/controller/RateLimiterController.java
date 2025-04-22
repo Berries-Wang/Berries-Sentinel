@@ -15,21 +15,23 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow.controller;
 
+import com.alibaba.csp.sentinel.node.Node;
+import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
-
-import com.alibaba.csp.sentinel.util.TimeUtil;
-import com.alibaba.csp.sentinel.node.Node;
-
 /**
- * @author jialiang.linjl
+ * 流控规则: 排队等待
  */
 public class RateLimiterController implements TrafficShapingController {
 
     private final int maxQueueingTimeMs;
     private final double count;
 
+    /**
+     * 上一次请求通过时间
+     */
     private final AtomicLong latestPassedTime = new AtomicLong(-1);
 
     public RateLimiterController(int timeOut, double count) {
@@ -55,31 +57,43 @@ public class RateLimiterController implements TrafficShapingController {
         }
 
         long currentTime = TimeUtil.currentTimeMillis();
-        // Calculate the interval between every two requests.
+        /**
+         * Calculate the interval between every two requests. (计算每两次请求之间的间隔。)
+         */
         long costTime = Math.round(1.0 * (acquireCount) / count * 1000);
 
-        // Expected pass time of this request.
+        /**
+         * Expected pass time of this request. (预期本次请求通过时间)
+         */
         long expectedTime = costTime + latestPassedTime.get();
 
-        if (expectedTime <= currentTime) {
+        if (expectedTime <= currentTime) {  // 预期时间早于当前时间,立即处理
             // Contention may exist here, but it's okay.
             latestPassedTime.set(currentTime);
             return true;
-        } else {
-            // Calculate the time to wait.
+        } else { // 反之，只能等到未来的某个时间处理了
+            /**
+             * Calculate the time to wait. 计算等待时间
+             */
             long waitTime = costTime + latestPassedTime.get() - TimeUtil.currentTimeMillis();
+
+            /**
+             * 等待时间大于在队列中最大等待时间，直接返回： 等待已超时
+             */
             if (waitTime > maxQueueingTimeMs) {
                 return false;
             } else {
+                // 等待未超时，oldTime就是本次请求预期处理时间
                 long oldTime = latestPassedTime.addAndGet(costTime);
                 try {
+                    // 重新计算等待时间
                     waitTime = oldTime - TimeUtil.currentTimeMillis();
                     if (waitTime > maxQueueingTimeMs) {
                         latestPassedTime.addAndGet(-costTime);
                         return false;
                     }
                     // in race condition waitTime may <= 0
-                    if (waitTime > 0) {
+                    if (waitTime > 0) { // 阻塞当前线程
                         Thread.sleep(waitTime);
                     }
                     return true;

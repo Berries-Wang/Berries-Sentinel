@@ -22,14 +22,25 @@ public class BerriesSentinelDebugApplication {
     private static void init_FlowRules() {
         List<FlowRule> rules = new ArrayList<>();
 
-        {
+        { // 冷启动
+//            FlowRule rule = new FlowRule();
+//            rule.setResource("com.Berries.Wang.controller.DebugFlowCodeFactorController#/sentinel/flow/codeFactor");
+//            rule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+//            // Set limit QPS to 20.
+//            rule.setCount(99);
+//            rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_WARM_UP);
+//            rule.setWarmUpPeriodSec(20);
+//            rules.add(rule);
+        }
+
+        {  // 排队等待
             FlowRule rule = new FlowRule();
             rule.setResource("com.Berries.Wang.controller.DebugFlowCodeFactorController#/sentinel/flow/codeFactor");
             rule.setGrade(RuleConstant.FLOW_GRADE_QPS);
             // Set limit QPS to 20.
-            rule.setCount(99);
-            rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_WARM_UP);
-            rule.setWarmUpPeriodSec(20);
+            rule.setCount(1);
+            rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_RATE_LIMITER);
+            rule.setMaxQueueingTimeMs(3500);
             rules.add(rule);
         }
 

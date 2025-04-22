@@ -22,6 +22,10 @@ import com.alibaba.csp.sentinel.util.TimeUtil;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 冷启动
+ */
+
+/**
  * <p>
  *     实现是在 Guava 的算法的基础上实现的。然而，和 Guava 的场景不同，Guava 的场景主要用于调节请求的间隔，
  *     而 Sentinel 则主要用于控制每秒的 QPS，即我们满足每秒通过的 QPS 即可，我们不需要关注每个请求的间隔。
