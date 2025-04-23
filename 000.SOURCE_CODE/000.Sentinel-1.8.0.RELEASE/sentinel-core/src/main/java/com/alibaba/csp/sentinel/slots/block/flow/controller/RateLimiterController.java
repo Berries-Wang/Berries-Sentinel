@@ -30,7 +30,7 @@ public class RateLimiterController implements TrafficShapingController {
     private final double count;
 
     /**
-     * 上一次请求通过时间
+     * 上一次请求通过时间：注意，这是CAS哦，下面还有addAndGet操作哦，那么多个请求线程到达了，这个值会累计的
      */
     private final AtomicLong latestPassedTime = new AtomicLong(-1);
 
